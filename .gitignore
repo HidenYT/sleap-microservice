@@ -1,0 +1,7 @@
+.env
+test_inference.py
+.vscode/
+__pycache__/
+/src/models/
+/src/uploads/
+venv/
