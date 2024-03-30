@@ -1,0 +1,34 @@
+version: "3"
+
+services:
+  microservice:
+    image: sleap-microservice
+    command: bash -c "flask db upgrade && flask run --debug --host=0.0.0.0 --port=5000"
+    build: .
+    ports:
+      - 5000:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+  postgres:
+    image: postgres:16.1
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - 5432:5432
+    volumes:
+      - .:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+  
