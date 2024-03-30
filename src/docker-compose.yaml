@@ -12,6 +12,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+  celery_worker:
+    image: sleap-microservice
+    command: celery -A app.run_celery:celery worker -l INFO -P threads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
   postgres:
     image: postgres:16.1
     environment:
