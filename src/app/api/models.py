@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
 
@@ -8,6 +9,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 class SLEAPNeuralNetwork(db.Model):
     __tablename__ = "sleap_neural_network"
     uid: Mapped[UUID] = mapped_column(default=uuid4, primary_key=True)
+    started_training_at: Mapped[Optional[datetime]]
+    finished_training_at: Mapped[Optional[datetime]]
+    training_config: Mapped[str]
     network_folder_path: Mapped[str]
     currently_training: Mapped[bool]
     celery_training_task_id: Mapped[Optional[str]]

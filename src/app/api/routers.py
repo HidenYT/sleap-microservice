@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 from uuid import UUID, uuid4
 
@@ -5,7 +6,7 @@ from sqlalchemy import select
 from app.api.models import InferenceResults, SLEAPNeuralNetwork
 from app.api.tasks import train_network_task, run_video_inference
 from app.utils.datasets import generate_model_folder_name
-from app.utils.learning_stats import get_model_learning_stats
+from app.utils.model_info import get_model_info, get_model_learning_stats
 from app.utils.training import notify_model_stoped_training
 from config import SLEAP_MODELS_DIR
 from . import bp
@@ -30,9 +31,11 @@ def train_network():
     folder_name = generate_model_folder_name(model_uid)
     model_folder_path = os.path.join(SLEAP_MODELS_DIR, str(model_uid))
     sleap_nn = SLEAPNeuralNetwork()
+    sleap_nn.started_training_at = datetime.now()
     sleap_nn.uid = model_uid
     sleap_nn.network_folder_path = model_folder_path
     sleap_nn.currently_training = True
+    sleap_nn.training_config = json.dumps(training_config)
     
     process: AsyncResult = train_network_task.delay(training_dataset_base64, training_config, model_uid, folder_name)
     sleap_nn.celery_training_task_id = process.id
@@ -85,6 +88,12 @@ def get_inference_results():
         return {}
     return json.loads(results.results_json)
 
+@bp.get("/model-info")
+def model_info():
+    model_uid = request.args.get("model_uid")
+    if model_uid is None:
+        raise NotFound("You should provide model_uid in order to retrieve information about a model.")
+    return get_model_info(UUID(model_uid))
 
 @bp.post("/stop-training")
 def stop_training():

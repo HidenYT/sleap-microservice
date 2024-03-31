@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from typing_extensions import Literal
 from uuid import UUID
@@ -45,7 +46,7 @@ class TrainingConfig:
         self.heads_output_stride    = config["heads_output_stride"]
         if self.backbone_model == "pretrained_encoder":
             if "pretrained_encoder" not in config or config["pretrained_encoder"] is None:
-                raise ValueError("Can't use backbone 'pretrained_encoder' and have an empty 'pretrained_encoder' value in config.")
+                raise IndexError("Can't use backbone 'pretrained_encoder' and have an empty 'pretrained_encoder' value in config.")
             self.pretrained_encoder = config["pretrained_encoder"]
 
 
@@ -100,4 +101,5 @@ def notify_model_stoped_training(model_uid: UUID):
     nn = db.session.execute(q).scalar_one()
     nn.celery_training_task_id = None
     nn.currently_training = False
+    nn.finished_training_at = datetime.now()
     db.session.commit()
