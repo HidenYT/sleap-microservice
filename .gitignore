@@ -1,7 +1,9 @@
 .env
 test_inference.py
+test_training.py
 .vscode/
 __pycache__/
 /src/models/
 /src/uploads/
 venv/
+celerybeat-schedule.*

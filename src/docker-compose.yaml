@@ -16,7 +16,7 @@ services:
         - data:/app
   celery_worker:
     image: sleap-microservice
-    command: celery -A app.run_celery:celery worker -l INFO -P threads
+    command: celery -A app.run_celery:celery worker -l INFO -P threads -B
     depends_on:
       postgres:
         condition: service_healthy

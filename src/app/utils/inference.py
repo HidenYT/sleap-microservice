@@ -2,14 +2,16 @@ import base64
 import json
 import os
 from datetime import datetime
+from typing import Iterable, Optional, Sequence
 
+from flask import current_app
+import requests
 from sleap import Labels
 from sqlalchemy import select
 from werkzeug.exceptions import NotFound
 from app.api.models import InferenceResults, SLEAPNeuralNetwork
 from config import VIDEOS_DIR
 from app.database import db
-from sleap.instance import Point
 
 
 def save_video_from_base64(video_base64: str, file_name: str, model_uid: str) -> str:
@@ -46,7 +48,54 @@ def update_inference_results(inference_results_id: int,
     q = select(InferenceResults).where(InferenceResults.id == inference_results_id)
     results = db.session.execute(q).scalar_one()
     results.results_json = json.dumps(results_dict)
+    results.finished_inference_at = datetime.now()
+    results.currently_running_inference = False
     db.session.commit()
 
 def remove_inference_video(video_path: str):
     os.remove(video_path)
+
+def find_oldest_waiting_for_inference() -> Optional[InferenceResults]:
+    q = (
+        select(InferenceResults)
+        .where(InferenceResults.results_json == None)
+        .order_by(InferenceResults.started_inference_at)
+    )
+    return db.session.scalar(q)
+
+def check_any_inference_running() -> bool:
+    q = select(InferenceResults).where(InferenceResults.currently_running_inference == True)
+    return bool(db.session.scalars(q).all())
+
+def find_ready_unsent_results() -> Sequence[InferenceResults]:
+    q = (
+        select(InferenceResults)
+        .where(
+            InferenceResults.results_json != None, 
+            InferenceResults.sent_back == False
+        )
+    )
+    return db.session.scalars(q).all()
+
+def send_inference_results(results: Iterable[InferenceResults]):
+    result_dict = {
+        "sender": "SLEAP", 
+        "results": []
+    }
+    for obj in results:
+        result_dict["results"].append({
+            "id": obj.id,
+            "keypoints": json.loads(obj.results_json)
+        })
+    response = requests.request(
+        method="POST",
+        url=current_app.config["SEND_RESULTS_URL"],
+        json=result_dict,
+        headers={
+            "Authorization": f"Bearer {current_app.config['SEND_RESULTS_TOKEN']}"
+        }
+    )
+    if response.status_code == 200:
+        for obj in results:
+            obj.sent_back = True
+        db.session.commit()

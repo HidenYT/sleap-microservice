@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from app.api.models import InferenceResults, SLEAPNeuralNetwork
-from app.api.tasks import train_network_task, run_video_inference
+from app.api.tasks import train_network_task
 from app.utils.datasets import generate_model_folder_name
 from app.utils.model_info import get_model_info, get_model_learning_stats
 from app.utils.training import notify_model_stoped_training
@@ -63,11 +63,13 @@ def video_inference():
         raise Conflict(f"Model with uid {model_uid} is currently being trained so it can not run inference")
     inference_results = InferenceResults()
     inference_results.network_uid = model_uid
+    inference_results.started_inference_at = datetime.now()
+    inference_results.currently_running_inference = False
+    inference_results.video_base64 = video_base64
+    inference_results.file_name = file_name
     db.session.add(inference_results)
     db.session.commit()
-    process: AsyncResult = run_video_inference.delay(video_base64, file_name, model_uid, inference_results.id)
-
-    return {"task_id": process.id, "results_id": inference_results.id}
+    return {"results_id": inference_results.id}
 
 @bp.get("/learning-stats")
 def get_learning_stats():
@@ -75,18 +77,6 @@ def get_learning_stats():
     if uid is None:
         raise NotFound("You should provide model_uid in order to retrieve leraning stats of a model")
     return get_model_learning_stats(UUID(uid))
-
-@bp.get("/inference-results")
-def get_inference_results():
-    id = request.args.get("results_id")
-    if id is None:
-        raise NotFound("You should provide id in order to retrieve inference results of a model")
-    results = db.session.scalar(select(InferenceResults).where(InferenceResults.id == int(id)))
-    if results is None:
-        raise NotFound(f"No results with id {id} found")
-    if results.results_json is None:
-        return {}
-    return json.loads(results.results_json)
 
 @bp.get("/model-info")
 def model_info():

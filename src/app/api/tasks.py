@@ -1,13 +1,18 @@
+import json
 from uuid import UUID
+from flask import current_app
+import requests
+import requests.auth
 import sleap
 from app.celery import celery
 import os
 from sleap.nn.training import Trainer
 from sleap import Labels
 from app.utils.datasets import create_sleap_labels_from_csv, extract_dataset_from_base64
-from app.utils.inference import extract_labels_dict_from_model_predictions, get_model_file_path, remove_inference_video, save_video_from_base64, update_inference_results
+from app.utils.inference import check_any_inference_running, extract_labels_dict_from_model_predictions, find_oldest_waiting_for_inference, find_ready_unsent_results, get_model_file_path, remove_inference_video, save_video_from_base64, send_inference_results, update_inference_results
 from app.utils.training import TrainingConfig, TrainingConfigurator, notify_model_stoped_training
 from config import DATASETS_DIR
+from app.database import db
 
 
 @celery.task
@@ -38,26 +43,35 @@ def train_network_task(training_dataset_base64: str,
 
 
 @celery.task
-def run_video_inference(video_base64: str,
-                        file_name: str,
-                        model_uid: UUID,
-                        inference_results_id: int):
+def check_and_run_inference():
+    print("CHECK")
+    if check_any_inference_running(): return
+    waiting = find_oldest_waiting_for_inference()
+    if waiting is None: return
+    waiting.currently_running_inference = True
+    db.session.commit()
     
+    video_base64 = waiting.video_base64
+    file_name = waiting.file_name
+    model_uid = waiting.network_uid
+
     video_file_path = save_video_from_base64(video_base64, file_name, str(model_uid))
 
     video = sleap.load_video(video_file_path)
     model_file_path = get_model_file_path(str(model_uid))
-    print(model_file_path)
+    
     predictor = sleap.load_model(model_file_path)
-
-    print(f"Started inference #{inference_results_id}")
 
     predictions: Labels = predictor.predict(video) # type: ignore
     
     predictions_dict = extract_labels_dict_from_model_predictions(predictions)
 
-    update_inference_results(inference_results_id, predictions_dict)
+    update_inference_results(waiting.id, predictions_dict)
     video.backend._reader_.release()
     remove_inference_video(video_file_path)
 
-    print(f"Finished inference #{inference_results_id}")
+@celery.task
+def send_inference_results_back():
+    ready_unsent = find_ready_unsent_results()
+    if not ready_unsent: return
+    send_inference_results(ready_unsent)
