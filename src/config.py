@@ -18,6 +18,3 @@ SLEAP_MODELS_DIR = os.path.join(os.getcwd(), "models")
 UPLOADS_DIR = os.path.join(os.getcwd(), "uploads")
 DATASETS_DIR = os.path.join(UPLOADS_DIR, "datasets")
 VIDEOS_DIR = os.path.join(UPLOADS_DIR, "videos")
-
-SEND_RESULTS_URL = os.getenv("SEND_RESULTS_URL")
-SEND_RESULTS_TOKEN = os.getenv("SEND_RESULTS_TOKEN")

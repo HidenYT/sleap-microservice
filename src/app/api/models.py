@@ -25,6 +25,5 @@ class InferenceResults(db.Model):
     currently_running_inference: Mapped[bool]
     video_base64: Mapped[str]
     file_name: Mapped[str]
-    sent_back: Mapped[bool] = mapped_column(default=False)
     network_uid: Mapped[UUID] = mapped_column(ForeignKey("sleap_neural_network.uid"))
     network: Mapped[SLEAPNeuralNetwork] = relationship()

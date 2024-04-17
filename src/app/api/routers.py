@@ -10,10 +10,10 @@ from app.utils.model_info import get_model_info, get_model_learning_stats
 from app.utils.training import notify_model_stoped_training
 from config import SLEAP_MODELS_DIR
 from . import bp
-from flask import request
+from flask import request, session
 import os
 from app.database import db
-from werkzeug.exceptions import NotFound, Conflict
+from werkzeug.exceptions import NotFound, Conflict, BadRequest
 from celery.result import AsyncResult
 
 @bp.post("/train-network")
@@ -102,3 +102,31 @@ def stop_training():
     except:
         raise NotFound(f"No learning processes with model uid {model_uid}")
     return {"success": f"Successfully terminated learning process of model with uid {model_uid}"}
+
+@bp.get("/inference-results")
+def get_results_view():
+    ids = request.args.get("ids")
+    if not ids:
+        raise BadRequest("You should provide ids")
+    try:
+        ids = list(map(int, ids.split(",")))
+        result = []
+        for id in ids:
+            results_model = db.session.scalar(
+                select(InferenceResults).where(InferenceResults.id == id)
+            )
+            if results_model is None:
+                raise NotFound(f"No results model with id {id}")
+            if results_model.results_json is None:
+                keypoints = None
+            else:
+                keypoints = json.loads(results_model.results_json)
+            result.append({
+                "id": id,
+                "keypoints": keypoints
+            })
+        return result
+    except NotFound as e:
+        raise e
+    except Exception as e:
+        raise BadRequest(str(e))

@@ -66,36 +66,3 @@ def find_oldest_waiting_for_inference() -> Optional[InferenceResults]:
 def check_any_inference_running() -> bool:
     q = select(InferenceResults).where(InferenceResults.currently_running_inference == True)
     return bool(db.session.scalars(q).all())
-
-def find_ready_unsent_results() -> Sequence[InferenceResults]:
-    q = (
-        select(InferenceResults)
-        .where(
-            InferenceResults.results_json != None, 
-            InferenceResults.sent_back == False
-        )
-    )
-    return db.session.scalars(q).all()
-
-def send_inference_results(results: Iterable[InferenceResults]):
-    result_dict = {
-        "sender": "SLEAP", 
-        "results": []
-    }
-    for obj in results:
-        result_dict["results"].append({
-            "id": obj.id,
-            "keypoints": json.loads(obj.results_json)
-        })
-    response = requests.request(
-        method="POST",
-        url=current_app.config["SEND_RESULTS_URL"],
-        json=result_dict,
-        headers={
-            "Authorization": f"Bearer {current_app.config['SEND_RESULTS_TOKEN']}"
-        }
-    )
-    if response.status_code == 200:
-        for obj in results:
-            obj.sent_back = True
-        db.session.commit()

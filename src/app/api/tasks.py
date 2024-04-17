@@ -1,15 +1,11 @@
-import json
 from uuid import UUID
-from flask import current_app
-import requests
-import requests.auth
 import sleap
 from app.celery import celery
 import os
 from sleap.nn.training import Trainer
 from sleap import Labels
 from app.utils.datasets import create_sleap_labels_from_csv, extract_dataset_from_base64
-from app.utils.inference import check_any_inference_running, extract_labels_dict_from_model_predictions, find_oldest_waiting_for_inference, find_ready_unsent_results, get_model_file_path, remove_inference_video, save_video_from_base64, send_inference_results, update_inference_results
+from app.utils.inference import check_any_inference_running, extract_labels_dict_from_model_predictions, find_oldest_waiting_for_inference, get_model_file_path, remove_inference_video, save_video_from_base64, update_inference_results
 from app.utils.training import TrainingConfig, TrainingConfigurator, notify_model_stoped_training
 from config import DATASETS_DIR
 from app.database import db
@@ -69,9 +65,3 @@ def check_and_run_inference():
     update_inference_results(waiting.id, predictions_dict)
     video.backend._reader_.release()
     remove_inference_video(video_file_path)
-
-@celery.task
-def send_inference_results_back():
-    ready_unsent = find_ready_unsent_results()
-    if not ready_unsent: return
-    send_inference_results(ready_unsent)
