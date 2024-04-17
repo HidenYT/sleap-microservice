@@ -130,3 +130,27 @@ def get_results_view():
         raise e
     except Exception as e:
         raise BadRequest(str(e))
+
+@bp.get("/get-finished-training-at")
+def get_finished_training_at_view():
+    uids = request.args.get("uids")
+    if not uids:
+        raise BadRequest("You should provide ids")
+    try:
+        uids = list(map(UUID, uids.split(",")))
+        result = []
+        for uid in uids:
+            net_model = db.session.scalar(
+                select(SLEAPNeuralNetwork).where(SLEAPNeuralNetwork.uid == uid)
+            )
+            if net_model is None:
+                raise NotFound(f"No results model with id {uid}")
+            result.append({
+                "uid": uid,
+                "finished_training_at": net_model.finished_training_at.isoformat() if net_model.finished_training_at else None
+            })
+        return result
+    except NotFound as e:
+        raise e
+    except Exception as e:
+        raise BadRequest(str(e))
