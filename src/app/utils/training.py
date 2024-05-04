@@ -33,7 +33,7 @@ class TrainingConfig:
         "seresnext50", "seresnext101", 
         "senet154", 
         "mobilenet", "mobilenetv2",
-        "efficientnetb0", "efficientnetb1", "efficientnetb2", "efficientnetb3", "efficientnetb4", "efficientnetb5"
+        "efficientnetb0", "efficientnetb1", "efficientnetb2", "efficientnetb3", "efficientnetb4", "efficientnetb5", "efficientnetb6", "efficientnetb7"
     ]] = None
     learning_rate: float
 
